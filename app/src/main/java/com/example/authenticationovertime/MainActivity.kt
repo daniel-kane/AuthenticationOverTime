@@ -22,14 +22,21 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Looper
 import android.provider.Settings
 import android.widget.TextView
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.*
+import java.io.*
+import java.nio.charset.Charset
+import java.sql.Time
+import java.time.LocalDateTime
+import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
@@ -39,18 +46,30 @@ class MainActivity : AppCompatActivity() {
     //use the actual Fused Location Provider API to get users current position
     lateinit var mFusedLocationClient: FusedLocationProviderClient
 
+    //Our db reference
+    //private lateinit var database: DatabaseReference
+    private val CSV_HEADER = "datetime,lat,lon"
+
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
+        //database = Firebase.database.reference
+
         //Call this in a loop/ at an interval. Should figure out how to get
         //location when the app is closed/in background
-        getLastLocation()
+        if(checkPermissions()) {
+            getLastLocation()
+        } else {
+            requestPermissions()
+            getLastLocation()
+        }
     }
 
-    //Checks if GPS or newtork providor is enabled for location manager
+    //Checks if GPS or network provider is enabled for location manager
     private fun isLocationEnabled(): Boolean {
         var locationManager: LocationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) || locationManager.isProviderEnabled(
@@ -85,6 +104,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     @SuppressLint("MissingPermission")
     private fun getLastLocation() {
 
@@ -97,8 +117,15 @@ class MainActivity : AppCompatActivity() {
                     if (location == null) {
                         requestNewLocationData()
                     } else {
+                        //WRITE TO DATABASE HERE***************************************************
+
+                        write_to_csv(LocalDateTime.now(), location.latitude.toFloat(), location.longitude.toFloat())
+
+                        read_csv()
+
                         findViewById<TextView>(R.id.latTextView).text = location.latitude.toString()
                         findViewById<TextView>(R.id.lonTextView).text = location.longitude.toString()
+
                     }
                 }
             } else {
@@ -118,10 +145,11 @@ class MainActivity : AppCompatActivity() {
     private fun requestNewLocationData() {
         var mLocationRequest = LocationRequest()
         mLocationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-        mLocationRequest.interval = 0
-        mLocationRequest.fastestInterval = 0
-
+        mLocationRequest.interval = 10000
+        mLocationRequest.fastestInterval = 5000
         //TO get location every 5-10 seconds, change the values above to 10000 and 5000
+
+
         mLocationRequest.numUpdates = 1
 
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -139,5 +167,78 @@ class MainActivity : AppCompatActivity() {
             findViewById<TextView>(R.id.latTextView).text = mLastLocation.latitude.toString()
             findViewById<TextView>(R.id.lonTextView).text = mLastLocation.longitude.toString()
         }
+    }
+
+    fun write_to_csv(datetime: LocalDateTime?, lat: Float?, lon: Float?) {
+
+        val tl = TimeLoc(datetime, lat, lon)
+
+        try {
+
+            var fileOS: FileOutputStream = openFileOutput("location_data.csv", Context.MODE_APPEND)
+
+           // fileOS.write(CSV_HEADER.toByteArray())
+            fileOS.write("\n".toByteArray())
+            fileOS.write(tl.datetime.toString().toByteArray())
+            fileOS.write(",".toByteArray())
+            fileOS.write(tl.lat.toString().toByteArray())
+            fileOS.write(",".toByteArray())
+            fileOS.write(tl.lon.toString().toByteArray())
+            fileOS.write("\n".toByteArray())
+
+            fileOS.close()
+
+            println("Write CSV successfully!")
+        } catch (e: Exception) {
+            println("Writing CSV error!")
+            e.printStackTrace()
+        }
+    }
+
+    fun read_csv() {
+        var fileReader: BufferedReader? = null
+
+        try {
+            var fileIS: FileInputStream = openFileInput("location_data.csv")
+            var isr = InputStreamReader(fileIS)
+
+            fileReader = BufferedReader(isr)
+
+            var line = fileReader.readLine()
+
+            while(line != null) {
+                println(line)
+                line = fileReader.readLine()
+            }
+
+        } catch (e: Exception) {
+            println("Reading CSV Error!")
+            e.printStackTrace()
+        } finally {
+            try {
+                fileReader!!.close()
+            } catch (e: IOException) {
+                println("Closing fileReader Error!")
+                e.printStackTrace()
+            }
+        }
+    }
+}
+
+
+class TimeLoc {
+    var datetime: LocalDateTime? = null
+    var lat: Float? = null
+    var lon: Float? = null
+
+   // constructor() {}
+    constructor(datetime: LocalDateTime?, lat: Float?, lon: Float?) {
+        this.datetime = datetime
+        this.lat = lat
+        this.lon = lon
+    }
+
+    override fun toString(): String {
+        return "TimeLoc = [date and time" + datetime.toString() + ", lat=" + lat.toString() + ", lon=" + lon.toString() + "]"
     }
 }
