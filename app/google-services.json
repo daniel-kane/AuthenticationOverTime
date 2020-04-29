@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "757346122601",
+    "firebase_url": "https://continuous-authenticatio-3ea48.firebaseio.com",
+    "project_id": "continuous-authenticatio-3ea48",
+    "storage_bucket": "continuous-authenticatio-3ea48.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:757346122601:android:3078f5e264dde05efc9bf8",
+        "android_client_info": {
+          "package_name": "com.example.authenticationovertime"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "757346122601-kd30kblekkdheh2c7blq3ge0hcdb5t0t.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB25_VUafwun0S4OChzqSK1JQDYeYkZB0A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "757346122601-kd30kblekkdheh2c7blq3ge0hcdb5t0t.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
