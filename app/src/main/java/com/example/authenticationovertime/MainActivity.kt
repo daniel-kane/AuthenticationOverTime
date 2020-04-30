@@ -52,11 +52,12 @@ class MainActivity : AppCompatActivity() {
     //use the actual Fused Location Provider API to get users current position
     lateinit var mFusedLocationClient: FusedLocationProviderClient
 
-    //Our db reference
-    //private lateinit var database: DatabaseReference
     private val CSV_HEADER = "datetime,lat,lon"
 
 
+    private val dateFormat =
+        SimpleDateFormat("M-d-yyyy HH:mm:ss")
+    val TAG = UStats::class.java.simpleName
 
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -66,37 +67,16 @@ class MainActivity : AppCompatActivity() {
 
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-        //database = Firebase.database.reference
-
-        //Call this in a loop/ at an interval. Should figure out how to get
-        //location when the app is closed/in background
-
-        //getStats(this)
-
-        //var usm = getUsageStatsManager(this)
-
-      /*  if (getUsageStatsList(this).isEmpty()) {
-            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
-            startActivity(intent)
-        }*/
-        /*if (UStats.getUsageStatsList(this).isEmpty()) {
-            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
-            startActivity(intent)
-        }*/
-
+        //Print the current usage stats. This would be called potentially every day
+        // to update the usage stats
         printCurrentUsageStatus(this)
-
+        //Reads the app usage statistics
         read_app()
 
-        //UStats().printanything()
-        //getLocationAtInterval()
+        //Launches method to get location at an interval
+        getLocationAtInterval()
 
-        interval()
-
-        //get app usage data here
-
-        //get accerometer data here
-
+        //Get user's gait information
     }
 
     //Checks if GPS or network provider is enabled for location manager
@@ -134,11 +114,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    private fun interval() {
+    private fun getLocationAtInterval() {
+        //Timer runs the below process every 20 seconds. In reality, study into battery usage and
+        //  real feasibility of getting the location data would need to take place. In addition
+        //  upon implementing methods to study the location, we would need some sort of guidance
+        //  on how often to get the location in order to properly authentication the user.
         fixedRateTimer("default", false, 0L, 20000) {
             if(checkPermissions()) {
+                //If permissions are enabled.
                 getLastLocation()
             } else {
+                //There is a bug in which, upon the first install, it asks the user for permissions
+                //but then doesn't actually get the location. A restart (not reinstall) of the
+                //application is necessary.
                 requestPermissions()
                 getLastLocation()
             }
@@ -148,20 +136,20 @@ class MainActivity : AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
     @SuppressLint("MissingPermission")
     private fun getLastLocation() {
-
         //If the permissions were given and location is enabled
+        //Function from tutorial by Ferdousur Rahman Sarker
         if (checkPermissions()) {
             if (isLocationEnabled()) {
-
                 mFusedLocationClient.lastLocation.addOnCompleteListener(this) { task ->
                     var location: Location? = task.result
                     if (location == null) {
                         requestNewLocationData()
                     } else {
-                        //WRITE TO DATABASE HERE***************************************************
 
+                        //CSV Write Occurs here
                         write_location(LocalDateTime.now(), location.latitude.toFloat(), location.longitude.toFloat())
 
+                        //Prints the contents of the CSV
                         read_location()
 
                         findViewById<TextView>(R.id.latTextView).text = location.latitude.toString()
@@ -170,7 +158,6 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             } else {
-
                 Toast.makeText(this, "Turn on location", Toast.LENGTH_LONG).show()
                 val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
                 startActivity(intent)
@@ -181,20 +168,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    //"in rare cases, the location can be null, so we do this, which record the location info in runtime
+
     @SuppressLint("MissingPermission")
     private fun requestNewLocationData() {
+        //Function from tutorial by Ferdousur Rahman Sarker
+        //"in rare cases, the location can be null, so we do this, which record the location info in runtime"
         var mLocationRequest = LocationRequest()
         mLocationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
         mLocationRequest.interval = 10000
         mLocationRequest.fastestInterval = 5000
         //TO get location every 5-10 seconds, change the values above to 10000 and 5000
-
-
         mLocationRequest.numUpdates = 1
-
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-
         //When we get an update, do the mLocationCallback code and update textviews
         mFusedLocationClient!!.requestLocationUpdates(
             mLocationRequest, mLocationCallback,
@@ -203,6 +188,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val mLocationCallback = object : LocationCallback() {
+        //Function from tutorial by Ferdousur Rahman Sarker
+        //"in rare cases, the location can be null, so we do this, which record the location info in runtime
         override fun onLocationResult(locationResult: LocationResult) {
             var mLastLocation: Location = locationResult.lastLocation
             findViewById<TextView>(R.id.latTextView).text = mLastLocation.latitude.toString()
@@ -211,15 +198,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun write_location(datetime: LocalDateTime?, lat: Float?, lon: Float?) {
+        //Function to write the current location and timestamp to CSV file.
 
+        //TimeLoc is an object of the datetime, lat, and lon
         val tl = TimeLoc(datetime, lat, lon)
 
         try {
-
+            //Create FD to our csv file.
             var fileOS: FileOutputStream = openFileOutput("location_data.csv", Context.MODE_APPEND)
 
-           // fileOS.write(CSV_HEADER.toByteArray())
-            fileOS.write("\n".toByteArray())
+            //Write the data, separated by commas
             fileOS.write(tl.datetime.toString().toByteArray())
             fileOS.write(",".toByteArray())
             fileOS.write(tl.lat.toString().toByteArray())
@@ -227,8 +215,8 @@ class MainActivity : AppCompatActivity() {
             fileOS.write(tl.lon.toString().toByteArray())
             fileOS.write("\n".toByteArray())
 
+            //Close out file
             fileOS.close()
-
             println("Write CSV successfully!")
         } catch (e: Exception) {
             println("Writing CSV error!")
@@ -237,21 +225,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun read_location() {
+        //Function to read the location csv file and print to system
         var fileReader: BufferedReader? = null
 
         try {
+            //Create FD to read csv file
             var fileIS: FileInputStream = openFileInput("location_data.csv")
             var isr = InputStreamReader(fileIS)
-
             fileReader = BufferedReader(isr)
 
             var line = fileReader.readLine()
 
+            //Print each line
             while(line != null) {
                 println(line)
                 line = fileReader.readLine()
             }
-
         } catch (e: Exception) {
             println("Reading CSV Error!")
             e.printStackTrace()
@@ -264,18 +253,12 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-//}
 
-//class UStats {
-
-    private val dateFormat =
-        SimpleDateFormat("M-d-yyyy HH:mm:ss")
-    val TAG = UStats::class.java.simpleName
-
-
+    //The below functions are from a github repo by Cole Murray
     @SuppressLint("WrongConstant")
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     fun getStats(context: Context) {
+        //Function by Cole Murray
         val usm = context.getSystemService("usagestats") as UsageStatsManager
         val interval = UsageStatsManager.INTERVAL_YEARLY
         val calendar = Calendar.getInstance()
@@ -299,6 +282,8 @@ class MainActivity : AppCompatActivity() {
 
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     fun getUsageStatsList(context: Context): List<UsageStats> {
+        //Function By Cole Murray
+        //Gets list of apps from UsageStatsManager
         val usm = getUsageStatsManager(context)
         val calendar = Calendar.getInstance()
         val endTime = calendar.timeInMillis
@@ -311,12 +296,13 @@ class MainActivity : AppCompatActivity() {
 
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     fun printUsageStats(usageStatsList: List<UsageStats>) {
+        //Function partially by Cole Murray
             try {
+                //Similar write code
                 var fileOS: FileOutputStream = openFileOutput("app_data.csv", Context.MODE_APPEND)
 
                 for (u in usageStatsList) {
                     println("Writing: Pkg: " + u.packageName + "\tForegroundTime: " + u.totalTimeInForeground)
-
                     fileOS.write(u.packageName.toString().toByteArray())
                     fileOS.write(",".toByteArray())
                     fileOS.write(u.totalTimeInForeground.toString().toByteArray())
@@ -324,29 +310,29 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 fileOS.close()
-
                 println("Write CSV successfully!")
             } catch (e: Exception) {
                 println("Writing CSV error!")
                 e.printStackTrace()
             }
-
     }
 
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     fun printCurrentUsageStatus(context: Context) {
+        //Function by Cole Murray
         printUsageStats(getUsageStatsList(context))
     }
 
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     @SuppressLint("WrongConstant")
     private fun getUsageStatsManager(context: Context): UsageStatsManager {
+        //Function by Cole Murray
         return context.getSystemService("usagestats") as UsageStatsManager
     }
 
     fun read_app() {
+        //Reads the csv file containing app usage stats
         var fileReader: BufferedReader? = null
-
         try {
             var fileIS: FileInputStream = applicationContext.openFileInput("app_data.csv")
             var isr = InputStreamReader(fileIS)
@@ -371,11 +357,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
-
 }
 
 class TimeLoc {
+    //Object for printing to location csv file.
     var datetime: LocalDateTime? = null
     var lat: Float? = null
     var lon: Float? = null
