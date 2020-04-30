@@ -17,7 +17,6 @@ package com.example.authenticationovertime
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.annotation.TargetApi
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager
@@ -27,7 +26,6 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
 import android.os.Build
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Looper
 import android.provider.Settings
@@ -35,15 +33,16 @@ import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.*
 import java.io.*
-import java.nio.charset.Charset
-import java.sql.Time
+import java.lang.NullPointerException
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
 import java.util.*
 import kotlin.concurrent.fixedRateTimer
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -57,6 +56,9 @@ class MainActivity : AppCompatActivity() {
     //private lateinit var database: DatabaseReference
     private val CSV_HEADER = "datetime,lat,lon"
 
+
+
+
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,8 +71,26 @@ class MainActivity : AppCompatActivity() {
         //Call this in a loop/ at an interval. Should figure out how to get
         //location when the app is closed/in background
 
+        //getStats(this)
 
+        //var usm = getUsageStatsManager(this)
+
+      /*  if (getUsageStatsList(this).isEmpty()) {
+            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+            startActivity(intent)
+        }*/
+        /*if (UStats.getUsageStatsList(this).isEmpty()) {
+            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+            startActivity(intent)
+        }*/
+
+        printCurrentUsageStatus(this)
+
+        read_app()
+
+        //UStats().printanything()
         //getLocationAtInterval()
+
         interval()
 
         //get app usage data here
@@ -115,7 +135,7 @@ class MainActivity : AppCompatActivity() {
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun interval() {
-        fixedRateTimer("default", false, 0L, 10000) {
+        fixedRateTimer("default", false, 0L, 20000) {
             if(checkPermissions()) {
                 getLastLocation()
             } else {
@@ -244,36 +264,19 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-}
+//}
 
+//class UStats {
 
-class TimeLoc {
-    var datetime: LocalDateTime? = null
-    var lat: Float? = null
-    var lon: Float? = null
-
-   // constructor() {}
-    constructor(datetime: LocalDateTime?, lat: Float?, lon: Float?) {
-        this.datetime = datetime
-        this.lat = lat
-        this.lon = lon
-    }
-
-    override fun toString(): String {
-        return "TimeLoc = [date and time" + datetime.toString() + ", lat=" + lat.toString() + ", lon=" + lon.toString() + "]"
-    }
-}
-
-
-class UStats {
     private val dateFormat =
         SimpleDateFormat("M-d-yyyy HH:mm:ss")
     val TAG = UStats::class.java.simpleName
 
+
     @SuppressLint("WrongConstant")
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     fun getStats(context: Context) {
-        val usm = context.getSystemService("usages") as UsageStatsManager
+        val usm = context.getSystemService("usagestats") as UsageStatsManager
         val interval = UsageStatsManager.INTERVAL_YEARLY
         val calendar = Calendar.getInstance()
         val endTime = calendar.timeInMillis
@@ -294,7 +297,7 @@ class UStats {
         }
     }
 
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     fun getUsageStatsList(context: Context): List<UsageStats> {
         val usm = getUsageStatsManager(context)
         val calendar = Calendar.getInstance()
@@ -303,28 +306,91 @@ class UStats {
         val startTime = calendar.timeInMillis
         Log.d(TAG, "Range start:" + dateFormat.format(startTime))
         Log.d(TAG, "Range end:" + dateFormat.format(endTime))
-        return usm.queryUsageStats(
-            UsageStatsManager.INTERVAL_DAILY, startTime, endTime
-        )
+        return usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
     }
 
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     fun printUsageStats(usageStatsList: List<UsageStats>) {
-        for (u in usageStatsList) {
-            Log.d(
-                TAG, "Pkg: " + u.packageName + "\t" + "ForegroundTime: "
-                        + u.totalTimeInForeground
-            )
-        }
+            try {
+                var fileOS: FileOutputStream = openFileOutput("app_data.csv", Context.MODE_APPEND)
+
+                for (u in usageStatsList) {
+                    println("Writing: Pkg: " + u.packageName + "\tForegroundTime: " + u.totalTimeInForeground)
+
+                    fileOS.write(u.packageName.toString().toByteArray())
+                    fileOS.write(",".toByteArray())
+                    fileOS.write(u.totalTimeInForeground.toString().toByteArray())
+                    fileOS.write("\n".toByteArray())
+                }
+
+                fileOS.close()
+
+                println("Write CSV successfully!")
+            } catch (e: Exception) {
+                println("Writing CSV error!")
+                e.printStackTrace()
+            }
+
     }
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     fun printCurrentUsageStatus(context: Context) {
         printUsageStats(getUsageStatsList(context))
     }
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     @SuppressLint("WrongConstant")
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     private fun getUsageStatsManager(context: Context): UsageStatsManager {
-        return context.getSystemService("usages") as UsageStatsManager
+        return context.getSystemService("usagestats") as UsageStatsManager
+    }
+
+    fun read_app() {
+        var fileReader: BufferedReader? = null
+
+        try {
+            var fileIS: FileInputStream = applicationContext.openFileInput("app_data.csv")
+            var isr = InputStreamReader(fileIS)
+            fileReader = BufferedReader(isr)
+
+            var line = fileReader.readLine()
+
+            while(line != null) {
+                println(line)
+                line = fileReader.readLine()
+            }
+
+        } catch (e: Exception) {
+            println("Reading CSV Error!")
+            e.printStackTrace()
+        } finally {
+            try {
+                fileReader!!.close()
+            } catch (e: IOException) {
+                println("Closing fileReader Error!")
+                e.printStackTrace()
+            }
+        }
+    }
+
+
+}
+
+class TimeLoc {
+    var datetime: LocalDateTime? = null
+    var lat: Float? = null
+    var lon: Float? = null
+
+   // constructor() {}
+    constructor(datetime: LocalDateTime?, lat: Float?, lon: Float?) {
+        this.datetime = datetime
+        this.lat = lat
+        this.lon = lon
+    }
+
+    override fun toString(): String {
+        return "TimeLoc = [date and time" + datetime.toString() + ", lat=" + lat.toString() + ", lon=" + lon.toString() + "]"
     }
 }
+
+
+
