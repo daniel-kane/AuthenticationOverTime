@@ -37,6 +37,7 @@ import java.nio.charset.Charset
 import java.sql.Time
 import java.time.LocalDateTime
 import java.util.*
+import kotlin.concurrent.fixedRateTimer
 
 class MainActivity : AppCompatActivity() {
 
@@ -61,12 +62,15 @@ class MainActivity : AppCompatActivity() {
 
         //Call this in a loop/ at an interval. Should figure out how to get
         //location when the app is closed/in background
-        if(checkPermissions()) {
-            getLastLocation()
-        } else {
-            requestPermissions()
-            getLastLocation()
-        }
+
+
+        //getLocationAtInterval()
+        interval()
+
+        //get app usage data here
+
+        //get accerometer data here
+
     }
 
     //Checks if GPS or network provider is enabled for location manager
@@ -95,11 +99,22 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         if (requestCode == PERMISSION_ID) {
             if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
                 // Granted. Start getting the location information
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun interval() {
+        fixedRateTimer("default", false, 0L, 10000) {
+            if(checkPermissions()) {
+                getLastLocation()
+            } else {
+                requestPermissions()
+                getLastLocation()
             }
         }
     }
@@ -119,9 +134,9 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         //WRITE TO DATABASE HERE***************************************************
 
-                        write_to_csv(LocalDateTime.now(), location.latitude.toFloat(), location.longitude.toFloat())
+                        write_location(LocalDateTime.now(), location.latitude.toFloat(), location.longitude.toFloat())
 
-                        read_csv()
+                        read_location()
 
                         findViewById<TextView>(R.id.latTextView).text = location.latitude.toString()
                         findViewById<TextView>(R.id.lonTextView).text = location.longitude.toString()
@@ -169,7 +184,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun write_to_csv(datetime: LocalDateTime?, lat: Float?, lon: Float?) {
+    fun write_location(datetime: LocalDateTime?, lat: Float?, lon: Float?) {
 
         val tl = TimeLoc(datetime, lat, lon)
 
@@ -195,7 +210,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun read_csv() {
+    fun read_location() {
         var fileReader: BufferedReader? = null
 
         try {
