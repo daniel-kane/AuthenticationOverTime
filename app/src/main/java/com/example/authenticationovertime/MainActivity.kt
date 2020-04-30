@@ -17,6 +17,10 @@ package com.example.authenticationovertime
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.annotation.TargetApi
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStats
+import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -27,6 +31,7 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Looper
 import android.provider.Settings
+import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
@@ -35,6 +40,7 @@ import com.google.android.gms.location.*
 import java.io.*
 import java.nio.charset.Charset
 import java.sql.Time
+import java.text.SimpleDateFormat
 import java.time.LocalDateTime
 import java.util.*
 import kotlin.concurrent.fixedRateTimer
@@ -255,5 +261,70 @@ class TimeLoc {
 
     override fun toString(): String {
         return "TimeLoc = [date and time" + datetime.toString() + ", lat=" + lat.toString() + ", lon=" + lon.toString() + "]"
+    }
+}
+
+
+class UStats {
+    private val dateFormat =
+        SimpleDateFormat("M-d-yyyy HH:mm:ss")
+    val TAG = UStats::class.java.simpleName
+
+    @SuppressLint("WrongConstant")
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    fun getStats(context: Context) {
+        val usm = context.getSystemService("usages") as UsageStatsManager
+        val interval = UsageStatsManager.INTERVAL_YEARLY
+        val calendar = Calendar.getInstance()
+        val endTime = calendar.timeInMillis
+        calendar.add(Calendar.YEAR, -1)
+        val startTime = calendar.timeInMillis
+        Log.d(TAG, "Range start:" + dateFormat.format(startTime))
+        Log.d(TAG, "Range end:" + dateFormat.format(endTime))
+        val uEvents = usm.queryEvents(startTime, endTime)
+        while (uEvents.hasNextEvent()) {
+            val e = UsageEvents.Event()
+            uEvents.getNextEvent(e)
+            if (e != null) {
+                Log.d(
+                    TAG,
+                    "Event: " + e.packageName + "\t" + e.timeStamp
+                )
+            }
+        }
+    }
+
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    fun getUsageStatsList(context: Context): List<UsageStats> {
+        val usm = getUsageStatsManager(context)
+        val calendar = Calendar.getInstance()
+        val endTime = calendar.timeInMillis
+        calendar.add(Calendar.YEAR, -1)
+        val startTime = calendar.timeInMillis
+        Log.d(TAG, "Range start:" + dateFormat.format(startTime))
+        Log.d(TAG, "Range end:" + dateFormat.format(endTime))
+        return usm.queryUsageStats(
+            UsageStatsManager.INTERVAL_DAILY, startTime, endTime
+        )
+    }
+
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    fun printUsageStats(usageStatsList: List<UsageStats>) {
+        for (u in usageStatsList) {
+            Log.d(
+                TAG, "Pkg: " + u.packageName + "\t" + "ForegroundTime: "
+                        + u.totalTimeInForeground
+            )
+        }
+    }
+
+    fun printCurrentUsageStatus(context: Context) {
+        printUsageStats(getUsageStatsList(context))
+    }
+
+    @SuppressLint("WrongConstant")
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    private fun getUsageStatsManager(context: Context): UsageStatsManager {
+        return context.getSystemService("usages") as UsageStatsManager
     }
 }
