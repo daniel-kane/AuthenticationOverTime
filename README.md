@@ -18,6 +18,6 @@ this csv file. Subsequent reruns will just append the data.
 ### To See Location and App Data
 
 The UI will show the most recent location. However, to see the program properly writing to and reading from the csv file
-along with the timestamp, check the system output in the terminal or logcat. 
+along with the timestamp, check the system output in the terminal or logcat. See note above if location data is not being displayed
 
 The same is true for App data. 
