@@ -21,3 +21,11 @@ The UI will show the most recent location. However, to see the program properly 
 along with the timestamp, check the system output in the terminal or logcat. See note above if location data is not being displayed
 
 The same is true for App data. 
+
+## References and Resources
+
+The code for the location data was adapted from a tutorial by Ferdousur Rahman Sarker, which can be found at the link below:
+https://www.androdocs.com/kotlin/getting-current-location-latitude-longitude-in-android-using-kotlin.html
+
+The code for the app usage statistics was adapted from Cole Murray from the following github:
+https://github.com/ColeMurray/UsageStatsSample/tree/master/app
