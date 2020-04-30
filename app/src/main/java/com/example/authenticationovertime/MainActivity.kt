@@ -23,6 +23,10 @@ import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.location.Location
 import android.location.LocationManager
 import android.os.Build
@@ -36,6 +40,7 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.*
+import kotlinx.android.synthetic.main.activity_main.*
 import java.io.*
 import java.lang.NullPointerException
 import java.text.SimpleDateFormat
@@ -44,7 +49,7 @@ import java.util.*
 import kotlin.concurrent.fixedRateTimer
 
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), SensorEventListener {
 
     //Any random number
     val PERMISSION_ID = 42
@@ -60,6 +65,9 @@ class MainActivity : AppCompatActivity() {
     val TAG = UStats::class.java.simpleName
 
 
+    //For accelerometer data
+    lateinit var sensorManager: SensorManager
+
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,13 +78,17 @@ class MainActivity : AppCompatActivity() {
         //Print the current usage stats. This would be called potentially every day
         // to update the usage stats
         printCurrentUsageStatus(this)
-        //Reads the app usage statistics
+        //Reads the app usage statistics from the csv file
         read_app()
 
         //Launches method to get location at an interval
+        //Stores and reads the csv files every 10
         getLocationAtInterval()
 
         //Get user's gait information
+
+        getAccelerometerData()
+
     }
 
     //Checks if GPS or network provider is enabled for location manager
@@ -303,6 +315,12 @@ class MainActivity : AppCompatActivity() {
 
                 for (u in usageStatsList) {
                     println("Writing: Pkg: " + u.packageName + "\tForegroundTime: " + u.totalTimeInForeground)
+
+                    //Android studio thing...
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        fileOS.write(LocalDateTime.now().toString().toByteArray())
+                        fileOS.write("\n".toByteArray())
+                    }
                     fileOS.write(u.packageName.toString().toByteArray())
                     fileOS.write(",".toByteArray())
                     fileOS.write(u.totalTimeInForeground.toString().toByteArray())
@@ -356,6 +374,27 @@ class MainActivity : AppCompatActivity() {
                 e.printStackTrace()
             }
         }
+    }
+
+    private fun getAccelerometerData() {
+
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        sensorManager.registerListener(
+            this,
+            sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
+            SensorManager.SENSOR_DELAY_NORMAL
+        )
+
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+
+    }
+
+    override fun onSensorChanged(event: SensorEvent?) {
+        atv1.text = "x = ${event!!.values[0]}"
+        atv2.text = "y = ${event.values[1]}"
+        atv3.text = "z = ${event.values[2]}"
     }
 }
 
