@@ -131,7 +131,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         //  real feasibility of getting the location data would need to take place. In addition
         //  upon implementing methods to study the location, we would need some sort of guidance
         //  on how often to get the location in order to properly authentication the user.
-        fixedRateTimer("default", false, 0L, 20000) {
+        fixedRateTimer("default", false, 0L, 10000) {
             if(checkPermissions()) {
                 //If permissions are enabled.
                 getLastLocation()
@@ -229,9 +229,9 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
             //Close out file
             fileOS.close()
-            println("Write CSV successfully!")
+            println("Write Location CSV successfully!")
         } catch (e: Exception) {
-            println("Writing CSV error!")
+            println("Writing Location CSV error!")
             e.printStackTrace()
         }
     }
@@ -248,13 +248,14 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
             var line = fileReader.readLine()
 
+            println("Print location data: ")
             //Print each line
             while(line != null) {
                 println(line)
                 line = fileReader.readLine()
             }
         } catch (e: Exception) {
-            println("Reading CSV Error!")
+            println("Reading Location CSV Error!")
             e.printStackTrace()
         } finally {
             try {
@@ -319,7 +320,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                     //Android studio thing...
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         fileOS.write(LocalDateTime.now().toString().toByteArray())
-                        fileOS.write("\n".toByteArray())
+                        fileOS.write(",".toByteArray())
                     }
                     fileOS.write(u.packageName.toString().toByteArray())
                     fileOS.write(",".toByteArray())
@@ -328,9 +329,9 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 }
 
                 fileOS.close()
-                println("Write CSV successfully!")
+                println("Write Stats CSV successfully!")
             } catch (e: Exception) {
-                println("Writing CSV error!")
+                println("Writing Stats CSV error!")
                 e.printStackTrace()
             }
     }
@@ -358,6 +359,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
             var line = fileReader.readLine()
 
+            println("App stat data: ")
             while(line != null) {
                 println(line)
                 line = fileReader.readLine()
@@ -390,11 +392,84 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
 
     }
+    private var write = true
 
     override fun onSensorChanged(event: SensorEvent?) {
+
         atv1.text = "x = ${event!!.values[0]}"
         atv2.text = "y = ${event.values[1]}"
         atv3.text = "z = ${event.values[2]}"
+
+        //This method gets a lot of data, constantly
+        //We would probably only need to capture the data when the user is walking, so
+        //  requiring some sort of trigger to stop it when it doesn't detect a walking
+        //  pattern. This way only the walk patterns are analyzed.
+
+        //We could also implement an averaging function or low pass filter to reduce the
+        // noise created by this.
+
+        if (write) {
+            //Only Record the data once
+            write_sensor_data(event.values[0], event.values[1], event.values[2])
+            read_sensor_data()
+            write = false
+        }
+    }
+
+    fun write_sensor_data(x: Float, y: Float, z: Float) {
+
+        try {
+            //Create FD to our csv file.
+            var fileOS: FileOutputStream = openFileOutput("sensor_data.csv", Context.MODE_APPEND)
+
+            //Write the data, separated by commas
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                fileOS.write(LocalDateTime.now().toString().toByteArray())
+                fileOS.write(",".toByteArray())
+            }
+            fileOS.write(x.toString().toByteArray())
+            fileOS.write(",".toByteArray())
+            fileOS.write(y.toString().toByteArray())
+            fileOS.write(",".toByteArray())
+            fileOS.write(z.toString().toByteArray())
+            fileOS.write("\n".toByteArray())
+
+            //Close out file
+            fileOS.close()
+            println("Write Sensor CSV successfully!")
+        } catch (e: Exception) {
+            println("Writing CSV error!")
+            e.printStackTrace()
+        }
+    }
+
+    fun read_sensor_data() {
+        //Reads the csv file containing app usage stats
+        var fileReader: BufferedReader? = null
+        try {
+            var fileIS: FileInputStream = applicationContext.openFileInput("sensor_data.csv")
+            var isr = InputStreamReader(fileIS)
+            fileReader = BufferedReader(isr)
+
+            var line = fileReader.readLine()
+
+            println("Sensor data:")
+            while(line != null) {
+                println(line)
+                line = fileReader.readLine()
+            }
+
+        } catch (e: Exception) {
+            println("Reading Sensor CSV Error!")
+            e.printStackTrace()
+        } finally {
+            try {
+                fileReader!!.close()
+            } catch (e: IOException) {
+                println("Closing fileReader Error!")
+                e.printStackTrace()
+            }
+        }
     }
 }
 
